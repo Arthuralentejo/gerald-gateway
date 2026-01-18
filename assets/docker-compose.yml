@@ -1,0 +1,13 @@
+services:
+  bank:
+    build:
+      context: ./mock/bank_server
+      dockerfile: Dockerfile
+    container_name: mock-bank
+    ports: ["8001:8000"]
+  ledger:
+    build:
+      context: ./mock/ledger_server
+      dockerfile: Dockerfile
+    container_name: mock-ledger
+    ports: ["8002:8000"]

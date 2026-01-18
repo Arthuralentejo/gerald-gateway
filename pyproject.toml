@@ -1,0 +1,36 @@
+[project]
+name = "gerald-gateway"
+version = "0.1.0"
+description = "BNPL Approval & Credit-Limit Service for Gerald"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Arthur Alentejo", email = "arthur.alentejo228@gmail.com"},
+]
+
+dependencies = [
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "asyncpg>=0.28.0",
+    "psycopg2-binary>=2.9.0",
+    "prometheus-client>=0.17.0",
+    "structlog>=23.1.0",
+    "httpx>=0.24.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.0.280",
+    "mypy>=1.4.0",
+    "ipykernel (>=7.1.0,<8.0.0)",
+]
+
+[tool.poetry]
+package-mode = false
