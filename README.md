@@ -295,3 +295,283 @@ curl -X POST http://localhost:8000/v1/decision \
   }
 }
 ```
+
+---
+
+## Questions & Answers
+
+### 1. How would Product diagnose an approval rate drop?
+
+**Scenario:** Approval rate drops from 35% to 25%. Is it a bug or legitimate user quality change?
+
+**Diagnostic approach:**
+
+1. **Check score distribution shift**
+   - Pull histogram of composite scores before/after the drop
+   - If the entire distribution shifted left → user quality changed
+   - If distribution is bimodal or has gaps → likely a bug
+
+2. **Compare individual factor distributions**
+   ```sql
+   -- Compare ADB, ratio, NSF distributions
+   SELECT
+     date_trunc('day', created_at) as day,
+     avg(score_numeric) as avg_score,
+     percentile_cont(0.5) WITHIN GROUP (ORDER BY score_numeric) as median
+   FROM bnpl_decisions
+   GROUP BY 1
+   ORDER BY 1;
+   ```
+   - If one factor (e.g., NSF) spiked while others stayed flat → investigate that factor
+   - If all factors shifted proportionally → user quality change
+
+3. **Segment by acquisition channel**
+   - Did the drop correlate with a new marketing campaign?
+   - Are users from a specific source (referral, paid ads) driving the change?
+
+4. **Check upstream data quality**
+   - Is the Bank API returning incomplete transaction data?
+   - Are there parsing errors in the transaction processor?
+   - Check `bank_fetch_failures_total` metric for spikes
+
+5. **Review recent code changes**
+   - Any deploys in the 24h before the drop?
+   - Check git history for scoring logic changes
+
+**Quick triage:** If approval rate dropped but average score of *approved* users stayed the same, it's likely a threshold issue. If average score dropped across all users, it's a user quality or data issue.
+
+---
+
+### 2. What would change for higher-income users?
+
+If Gerald pivoted to target higher-income users instead of paycheck-to-paycheck:
+
+**Scoring changes:**
+
+| Parameter | Current (Low-Income) | Higher-Income |
+|-----------|---------------------|---------------|
+| `SCORING_ADB_LOW_THRESHOLD` | $100 | $500 |
+| `SCORING_ADB_MODERATE_THRESHOLD` | $500 | $2,000 |
+| `SCORING_ADB_GOOD_THRESHOLD` | $1,500 | $5,000 |
+| `SCORING_WEIGHT_ADB` | 0.30 | 0.20 |
+| `SCORING_WEIGHT_NSF` | 0.35 | 0.25 |
+| Max credit limit | $600 | $2,000+ |
+
+**Rationale:**
+- Higher-income users have larger balances, so thresholds must scale up
+- NSF events are rarer and more significant for this segment (over-index on them)
+- ADB becomes less predictive (most will have "good" balances)
+- Higher limits make sense since average transaction sizes are larger
+
+**New factors to consider:**
+- Debt-to-income ratio (they may have mortgages, car payments)
+- Credit utilization patterns
+- Savings rate (income - spending) / income
+
+**Business model implications:**
+- Higher limits = higher default exposure per user
+- May need credit bureau data to maintain <5% default rate
+- Cornerstore revenue per user likely higher (larger baskets)
+
+---
+
+### 3. How would you explain a decline to a frustrated user?
+
+**Principles:**
+- Be specific enough to be actionable
+- Don't reveal exact thresholds (prevents gaming)
+- Provide a path forward
+- Acknowledge their frustration
+
+**Example response:**
+
+> "We reviewed your recent banking activity and aren't able to approve you at this time. This decision was based on factors like recent overdrafts, the balance between your income and spending, and your account history length.
+>
+> **What you can do:**
+> - Avoid overdrafts for the next 30 days
+> - Ensure regular deposits are visible in your connected account
+> - You can reapply in 30 days
+>
+> We know this is frustrating. Our goal is to set you up for success, and approving credit you can't comfortably repay wouldn't help either of us."
+
+**What we expose in the API:**
+```json
+{
+  "decision_factors": {
+    "avg_daily_balance": -50.00,  // "Your balance has been low"
+    "income_ratio": 0.75,         // "Spending exceeded income"
+    "nsf_count": 4,               // "Recent overdrafts"
+    "risk_score": 18              // Internal use only
+  }
+}
+```
+
+Support can use `decision_factors` to give specific guidance without revealing scoring thresholds.
+
+---
+
+### 4. Business Math: Break-even analysis
+
+**Given:**
+- Cornerstore revenue per approved user: $50
+- Default rate: 3%
+- Average credit limit: $300 (assumption based on our tiers)
+
+**Question:** What's the break-even approval rate?
+
+**Analysis:**
+
+First, let's understand the economics per approved user:
+
+```
+Revenue per approved user     = $50 (Cornerstore margin)
+Expected loss per user        = Default Rate × Average Limit
+                              = 3% × $300
+                              = $9
+
+Net revenue per approved user = $50 - $9 = $41
+```
+
+Since net revenue per approved user is positive ($41), **any approval rate > 0% is profitable** at these assumptions.
+
+**The real question is: at what default rate do we break even?**
+
+```
+Break-even: Revenue = Expected Loss
+$50 = Default Rate × $300
+Default Rate = $50 / $300 = 16.7%
+```
+
+**Interpretation:**
+- Our target 3% default rate provides a **$41 margin per user** (82% of Cornerstore revenue retained)
+- We could tolerate up to **16.7% default rate** before losing money
+- The 5% default ceiling in requirements gives us **$35 margin per user** (70% retained)
+
+**Sensitivity analysis:**
+
+| Default Rate | Loss per User | Net Revenue | Margin |
+|--------------|---------------|-------------|--------|
+| 1% | $3 | $47 | 94% |
+| 3% | $9 | $41 | 82% |
+| 5% | $15 | $35 | 70% |
+| 10% | $30 | $20 | 40% |
+| 16.7% | $50 | $0 | 0% (break-even) |
+
+**Why this matters for approval rate decisions:**
+
+If we're too conservative (low approval rate), we leave money on the table. If we're too aggressive, defaults eat our margin. The optimal point is where marginal revenue from one more approval equals marginal loss from increased defaults.
+
+With our current model targeting 40% approval and <5% default, we expect:
+```
+Per 100 applicants:
+- 40 approved
+- 40 × $35 net = $1,400 total margin
+- vs. rejecting everyone = $0
+```
+
+---
+
+### 5. How would the model change with more data?
+
+**With 6 months of transaction history (instead of 90 days):**
+
+```python
+# Recency weighting - recent behavior matters more
+def weighted_nsf_count(transactions, days=180):
+    recent_weight = 2.0   # Last 30 days
+    mid_weight = 1.0      # 30-90 days
+    old_weight = 0.5      # 90-180 days
+
+    # Weight NSFs by recency
+    weighted_count = sum(
+        recent_weight if days_ago < 30 else
+        mid_weight if days_ago < 90 else
+        old_weight
+        for t in transactions if t.nsf
+    )
+    return weighted_count
+```
+
+**Benefits:**
+- Detect recovery patterns (was struggling, now stable)
+- Seasonal income patterns (tax refunds, bonuses)
+- More confident thin-file identification
+- Trend analysis (improving vs. deteriorating)
+
+---
+
+**With credit bureau data:**
+
+| New Factor | Weight | Rationale |
+|------------|--------|-----------|
+| Credit score | 25% | Proven predictor across industries |
+| Credit utilization | 15% | High utilization = higher risk |
+| Payment history | 20% | Broader view than bank NSFs alone |
+| Account age | 5% | Longer history = more stable |
+
+**Adjusted weights:**
+```python
+# With bureau data, reduce reliance on bank-only signals
+SCORING_WEIGHT_ADB = 0.15      # Was 0.30
+SCORING_WEIGHT_RATIO = 0.20    # Was 0.35
+SCORING_WEIGHT_NSF = 0.15      # Was 0.35
+SCORING_WEIGHT_BUREAU = 0.50   # New
+```
+
+**Benefits:**
+- Approve thin-file users with good credit history
+- Catch users with NSFs at *other* banks
+- Industry-standard risk signal
+
+---
+
+**With rent/utility payment history:**
+
+This is especially valuable for Gerald's demographic (underbanked users who may lack traditional credit):
+
+```python
+# Alternative credit data
+def score_alternative_credit(rent_payments, utility_payments):
+    """
+    On-time rent/utility payments are strong positive signals
+    for users without traditional credit history.
+    """
+    on_time_rate = (on_time_payments / total_payments)
+
+    if on_time_rate >= 0.95:
+        return 90  # Excellent
+    elif on_time_rate >= 0.85:
+        return 70  # Good
+    elif on_time_rate >= 0.75:
+        return 50  # Fair
+    else:
+        return 30  # Poor
+```
+
+**Benefits:**
+- Include responsible renters who lack credit cards
+- Reduce thin-file decline rate
+- Fairer to users without traditional banking relationships
+- Aligns with Gerald's mission to serve underbanked users
+
+---
+
+## Configuration
+
+All scoring parameters are configurable via environment variables:
+
+```bash
+# Core thresholds
+SCORING_APPROVAL_THRESHOLD=30
+SCORING_THIN_FILE_LIMIT_CENTS=10000
+
+# Factor weights (must sum to 1.0)
+SCORING_WEIGHT_ADB=0.30
+SCORING_WEIGHT_RATIO=0.35
+SCORING_WEIGHT_NSF=0.35
+
+# Credit limit tiers (JSON)
+SCORING_CREDIT_LIMIT_TIERS_JSON=[[0,29,0],[30,44,10000],[45,59,20000],[60,74,30000],[75,84,40000],[85,94,50000],[95,100,60000]]
+```
+
+See `.env.example` for all available settings.
