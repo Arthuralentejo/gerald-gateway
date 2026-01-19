@@ -1,64 +1,310 @@
 {
   "title": "Gerald BNPL - Approvals & Limits (7d)",
+  "description": "Business and technical metrics for the Gerald Gateway BNPL service",
   "layout_type": "ordered",
   "widgets": [
     {
       "definition": {
-        "type": "timeseries",
-        "title": "Approval Rate (1h)",
-        "requests": [
+        "title": "Business Metrics",
+        "type": "group",
+        "layout_type": "ordered",
+        "widgets": [
           {
-            "q": "sum:gerald.approved{*}.rollup(sum,3600)/(sum:gerald.approved{*}.rollup(sum,3600)+sum:gerald.declined{*}.rollup(sum,3600))"
-          }
-        ]
-      }
-    },
-    {
-      "definition": {
-        "type": "timeseries",
-        "title": "Decisions total (by outcome)",
-        "requests": [
-          {
-            "q": "sum:gerald.approved{*}.as_count()"
+            "definition": {
+              "type": "query_value",
+              "title": "Approval Rate (1h)",
+              "requests": [
+                {
+                  "q": "avg:gerald_approval_rate_1h{*}",
+                  "aggregator": "last"
+                }
+              ],
+              "precision": 2,
+              "custom_unit": "%"
+            }
           },
           {
-            "q": "sum:gerald.declined{*}.as_count()"
-          }
-        ]
-      }
-    },
-    {
-      "definition": {
-        "type": "toplist",
-        "title": "Credit Limit Buckets",
-        "requests": [
-          {
-            "q": "sum:gerald.credit_limit.bucket{*} by {bucket}"
-          }
-        ]
-      }
-    },
-    {
-      "definition": {
-        "type": "timeseries",
-        "title": "Webhook Latency (p50/p95)",
-        "requests": [
-          {
-            "q": "avg:webhook.latency.seconds{*}.rollup(avg,300)"
+            "definition": {
+              "type": "query_value",
+              "title": "Avg Credit Limit",
+              "requests": [
+                {
+                  "q": "avg:gerald_avg_credit_limit_dollars{*}",
+                  "aggregator": "last"
+                }
+              ],
+              "precision": 0,
+              "custom_unit": "$"
+            }
           },
           {
-            "q": "pct:95:webhook.latency.seconds{*}"
+            "definition": {
+              "type": "timeseries",
+              "title": "Approval Rate Trend (7d with 24h moving avg)",
+              "requests": [
+                {
+                  "q": "sum:gerald_decision_total{outcome:approved}.as_rate() / (sum:gerald_decision_total{outcome:approved}.as_rate() + sum:gerald_decision_total{outcome:declined}.as_rate())",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "q": "moving_rollup(sum:gerald_decision_total{outcome:approved}.as_rate() / (sum:gerald_decision_total{outcome:approved}.as_rate() + sum:gerald_decision_total{outcome:declined}.as_rate()), 86400, 'avg')",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "dashed",
+                    "line_width": "thick"
+                  }
+                }
+              ],
+              "yaxis": {
+                "min": "0",
+                "max": "1"
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Decisions by Outcome",
+              "requests": [
+                {
+                  "q": "sum:gerald_decision_total{outcome:approved}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "green"
+                  }
+                },
+                {
+                  "q": "sum:gerald_decision_total{outcome:declined}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "toplist",
+              "title": "Credit Limit Distribution",
+              "requests": [
+                {
+                  "q": "sum:gerald_credit_limit_bucket{*} by {bucket}.as_count()"
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Average Credit Limit per Day",
+              "requests": [
+                {
+                  "q": "avg:gerald_avg_credit_limit_dollars{*}",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": {
+                "min": "0"
+              }
+            }
           }
         ]
       }
     },
     {
       "definition": {
-        "type": "timeseries",
-        "title": "Bank Fetch Failures",
-        "requests": [
+        "title": "Engineering Metrics",
+        "type": "group",
+        "layout_type": "ordered",
+        "widgets": [
           {
-            "q": "sum:bank.fetch.failures{*}.as_count()"
+            "definition": {
+              "type": "timeseries",
+              "title": "Decision Latency (p50, p95, p99)",
+              "requests": [
+                {
+                  "q": "avg:gerald_decision_latency_seconds.median{*}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "dog_classic"
+                  }
+                },
+                {
+                  "q": "avg:gerald_decision_latency_seconds.95percentile{*}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "warm"
+                  }
+                },
+                {
+                  "q": "avg:gerald_decision_latency_seconds.99percentile{*}",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "orange"
+                  }
+                }
+              ],
+              "yaxis": {
+                "min": "0"
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "HTTP Requests by Status",
+              "requests": [
+                {
+                  "q": "sum:gerald_http_requests_total{status:200}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "green"
+                  }
+                },
+                {
+                  "q": "sum:gerald_http_requests_total{status:4*}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "yellow"
+                  }
+                },
+                {
+                  "q": "sum:gerald_http_requests_total{status:5*}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Bank API Health",
+              "requests": [
+                {
+                  "q": "sum:gerald_bank_fetch_total{status:success}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "green"
+                  }
+                },
+                {
+                  "q": "sum:gerald_bank_fetch_failures_total{*}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Bank API Failure Rate",
+              "requests": [
+                {
+                  "q": "sum:gerald_bank_fetch_failures_total{*}.as_count() / sum:gerald_bank_fetch_total{*}.as_count() * 100",
+                  "display_type": "line",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ],
+              "yaxis": {
+                "min": "0",
+                "max": "100"
+              },
+              "markers": [
+                {
+                  "value": "y = 10",
+                  "display_type": "error dashed",
+                  "label": "Alert threshold (10%)"
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Bank API Latency (p50, p95)",
+              "requests": [
+                {
+                  "q": "avg:gerald_bank_fetch_latency_seconds.median{*}",
+                  "display_type": "line"
+                },
+                {
+                  "q": "avg:gerald_bank_fetch_latency_seconds.95percentile{*}",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": {
+                "min": "0"
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Webhook Latency (p50, p95)",
+              "requests": [
+                {
+                  "q": "avg:gerald_webhook_latency_seconds.median{*}",
+                  "display_type": "line"
+                },
+                {
+                  "q": "avg:gerald_webhook_latency_seconds.95percentile{*}",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": {
+                "min": "0"
+              }
+            }
+          },
+          {
+            "definition": {
+              "type": "timeseries",
+              "title": "Webhook Retries & Failures",
+              "requests": [
+                {
+                  "q": "sum:gerald_webhook_retry_total{*}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "yellow"
+                  }
+                },
+                {
+                  "q": "sum:gerald_webhook_failures_total{*}.as_count()",
+                  "display_type": "bars",
+                  "style": {
+                    "palette": "red"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "definition": {
+              "type": "query_value",
+              "title": "Webhook Queue Depth",
+              "requests": [
+                {
+                  "q": "avg:gerald_webhook_queue_depth{*}",
+                  "aggregator": "last"
+                }
+              ],
+              "precision": 0
+            }
           }
         ]
       }

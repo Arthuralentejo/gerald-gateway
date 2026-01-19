@@ -7,6 +7,12 @@ import httpx
 import structlog
 
 from src.core.config import settings
+from src.core.metrics import (
+    track_webhook_latency,
+    record_webhook_retry,
+    record_webhook_success,
+    record_webhook_failure,
+)
 from src.domain.entities import Plan
 from src.domain.interfaces import LedgerWebhookClient
 
@@ -87,28 +93,30 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
 
         for attempt in range(self._max_retries):
             try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    response = await client.post(
-                        url,
-                        json=payload,
-                        headers={"Content-Type": "application/json"},
-                    )
+                with track_webhook_latency():
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        response = await client.post(
+                            url,
+                            json=payload,
+                            headers={"Content-Type": "application/json"},
+                        )
 
-                    if response.status_code < 400:
-                        logger.info(
-                            "webhook_sent",
+                        if response.status_code < 400:
+                            logger.info(
+                                "webhook_sent",
+                                event_type=event_type,
+                                status_code=response.status_code,
+                            )
+                            record_webhook_success()
+                            return True
+
+                        logger.warning(
+                            "webhook_failed",
                             event_type=event_type,
                             status_code=response.status_code,
+                            attempt=attempt + 1,
+                            response=response.text[:200],
                         )
-                        return True
-
-                    logger.warning(
-                        "webhook_failed",
-                        event_type=event_type,
-                        status_code=response.status_code,
-                        attempt=attempt + 1,
-                        response=response.text[:200],
-                    )
 
             except httpx.TimeoutException:
                 logger.warning(
@@ -124,8 +132,9 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
                     error=str(e),
                 )
 
-            # Exponential backoff
+            # Record retry and exponential backoff
             if attempt < self._max_retries - 1:
+                record_webhook_retry()
                 delay = 2 ** attempt * 0.1
                 await asyncio.sleep(delay)
 
@@ -134,4 +143,5 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
             event_type=event_type,
             max_retries=self._max_retries,
         )
+        record_webhook_failure()
         return False

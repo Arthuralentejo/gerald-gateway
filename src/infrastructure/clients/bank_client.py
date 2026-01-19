@@ -8,6 +8,11 @@ import httpx
 import structlog
 
 from src.core.config import settings
+from src.core.metrics import (
+    track_bank_fetch_latency,
+    record_bank_fetch_success,
+    record_bank_fetch_failure,
+)
 from src.domain.entities import Transaction, TransactionType
 from src.domain.exceptions import (
     BankAPIException,
@@ -49,22 +54,27 @@ class HttpBankAPIClient(BankAPIClient):
 
         for attempt in range(self._max_retries):
             try:
-                async with httpx.AsyncClient(timeout=self._timeout) as client:
-                    response = await client.get(url, params=params)
+                with track_bank_fetch_latency():
+                    async with httpx.AsyncClient(timeout=self._timeout) as client:
+                        response = await client.get(url, params=params)
 
-                    if response.status_code == 404:
-                        raise UserNotFoundException(user_id)
+                        if response.status_code == 404:
+                            record_bank_fetch_failure("not_found")
+                            raise UserNotFoundException(user_id)
 
-                    if response.status_code >= 400:
-                        raise BankAPIException(
-                            message=f"Bank API error: {response.text}",
-                            status_code=response.status_code,
-                        )
+                        if response.status_code >= 400:
+                            record_bank_fetch_failure("error")
+                            raise BankAPIException(
+                                message=f"Bank API error: {response.text}",
+                                status_code=response.status_code,
+                            )
 
-                    data = response.json()
-                    return self._parse_transactions(data)
+                        data = response.json()
+                        record_bank_fetch_success()
+                        return self._parse_transactions(data)
 
             except httpx.TimeoutException:
+                record_bank_fetch_failure("timeout")
                 last_exception = BankAPITimeoutException()
                 logger.warning(
                     "bank_api_timeout",
@@ -75,6 +85,7 @@ class HttpBankAPIClient(BankAPIClient):
             except (UserNotFoundException, BankAPIException):
                 raise
             except Exception as e:
+                record_bank_fetch_failure("error")
                 last_exception = BankAPIException(
                     message=f"Unexpected error: {str(e)}",
                 )

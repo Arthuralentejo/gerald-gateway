@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from src.application.dto import DecisionRequest
 from src.application.services import DecisionService
 from src.core.dependencies import get_decision_service
+from src.core.metrics import record_decision, track_decision_latency
 from src.presentation.schemas import (
     DecisionRequestSchema,
     DecisionResponseSchema,
@@ -52,7 +53,11 @@ async def create_decision(
         amount_cents_requested=request.amount_cents_requested,
     )
 
-    response = await decision_service.make_decision(dto)
+    with track_decision_latency():
+        response = await decision_service.make_decision(dto)
+
+    # Record business metrics
+    record_decision(response.approved, response.credit_limit_cents)
 
     return DecisionResponseSchema(
         approved=response.approved,
