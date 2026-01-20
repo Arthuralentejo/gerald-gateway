@@ -1,6 +1,6 @@
 
 .PHONY: help install install-dev lint lint-fix format \
-        test test-unit test-fast coverage \
+        test test-unit test-integration test-fast coverage \
         run \
         docker-up docker-down docker-logs \
         db-up db-down \
@@ -21,6 +21,7 @@ help:
 	@echo "Testing:"
 	@echo "  test           Run all tests"
 	@echo "  test-unit      Run unit tests only"
+	@echo "  test-integration  Run integration tests only"
 	@echo "  test-fast      Run tests, stop on first failure"
 	@echo "  coverage       Run tests with coverage report"
 	@echo ""
@@ -79,6 +80,9 @@ test:
 
 test-unit:
 	pytest tests/unit/ -v
+
+test-integration:
+	pytest tests/integration/ -v
 
 test-fast:
 	pytest tests/ -v -x --ff

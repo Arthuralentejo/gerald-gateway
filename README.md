@@ -170,7 +170,9 @@ Standard FastAPI patterns:
 
 ## Testing Strategy
 
-**64 unit tests** covering:
+### Unit Tests (64 tests)
+
+Located in `tests/unit/`, these test the scoring module:
 
 1. **Risk factor calculations** - ADB, ratio, NSF count with various edge cases
 2. **Scoring functions** - Boundary conditions, normalization
@@ -178,10 +180,36 @@ Standard FastAPI patterns:
 4. **Thin file handling** - Clean vs. NSF thin files
 5. **End-to-end decisions** - Healthy user, risky user, edge cases
 
+### Integration Tests
+
+Located in `tests/integration/`, these test the full API:
+
+1. **Decision API** (`test_decision_api.py`)
+   - `test_user_good_approval` - Happy path approval with plan
+   - `test_user_overdraft_decline` - Users with NSFs are declined
+   - `test_user_highutil_capped_to_limit` - Requested amount capped to credit limit
+   - `test_user_thin_file` - Thin file policy handling
+
+2. **Persistence** (`test_persistence.py`)
+   - `test_plan_retrieval` - GET /v1/plan/{plan_id} returns correct schedule
+   - `test_decision_history` - GET /v1/decision/history shows audit trail
+
+3. **Resilience** (`test_resilience.py`)
+   - `test_bank_api_failure` - Returns 503 on upstream failure
+   - `test_webhook_failure_does_not_block_decision` - Decisions succeed even if webhook fails
+
+4. **Metrics** (`test_metrics.py`)
+   - `test_metrics_incremented` - Counters and gauges are updated
+   - `test_metrics_endpoint_returns_prometheus_format` - /metrics returns valid format
+
+### Running Tests
+
 ```bash
-make test           # Run all tests
-make coverage       # See coverage report
-make test-fast      # Stop on first failure
+make test              # Run all tests (unit + integration)
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-fast         # Stop on first failure
+make coverage          # Run tests with coverage report
 ```
 
 The scoring module has high coverage because it's pure functions - no mocking needed.
@@ -192,9 +220,9 @@ The scoring module has high coverage because it's pure functions - no mocking ne
 
 ### With More Time
 
-1. **Integration tests** - Test the full API with a real database
-2. **Property-based testing** - Use Hypothesis for scoring edge cases
-3. **Load testing** - Verify performance under concurrent requests
+1. **Property-based testing** - Use Hypothesis for scoring edge cases
+2. **Load testing** - Verify performance under concurrent requests
+3. **End-to-end tests with real PostgreSQL** - Current integration tests use SQLite in-memory
 
 ### With More Data
 
@@ -224,7 +252,12 @@ gerald-gateway/
 │   ├── presentation/           # Routes, schemas, middleware
 │   └── service/scoring/        # Risk algorithm (isolated)
 ├── tests/
-│   └── unit/                   # 64 unit tests
+│   ├── unit/                   # 64 unit tests for scoring module
+│   └── integration/            # API integration tests
+│       ├── test_decision_api.py
+│       ├── test_persistence.py
+│       ├── test_resilience.py
+│       └── test_metrics.py
 ├── Makefile                    # Development commands
 ├── docker-compose.yml          # PostgreSQL + App
 ├── Dockerfile                  # Production image
@@ -238,8 +271,14 @@ gerald-gateway/
 ```bash
 make help           # Show all commands
 
+# Testing
+make test              # Run all tests (unit + integration)
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-fast         # Stop on first failure
+make coverage          # Generate coverage report
+
 # Development
-make test           # Run tests
 make lint           # Check code quality
 make format         # Format code
 
