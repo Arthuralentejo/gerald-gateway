@@ -19,10 +19,12 @@ from src.core.dependencies import (
     get_ledger_client,
     get_decision_repository,
     get_plan_repository,
+    get_webhook_repository,
 )
 from src.infrastructure.repositories import (
     PostgresDecisionRepository,
     PostgresPlanRepository,
+    PostgresWebhookRepository,
 )
 from tests.integration.conftest import MockBankAPIClient, MockLedgerWebhookClient
 
@@ -80,6 +82,9 @@ class TestBankAPIFailure:
         async def override_get_plan_repository():
             return PostgresPlanRepository(test_session)
 
+        async def override_get_webhook_repository():
+            return PostgresWebhookRepository(test_session)
+
         def override_get_bank_client():
             return timeout_bank_client
 
@@ -88,6 +93,7 @@ class TestBankAPIFailure:
 
         app.dependency_overrides[get_decision_repository] = override_get_decision_repository
         app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+        app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
         app.dependency_overrides[get_bank_client] = override_get_bank_client
         app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 
@@ -157,6 +163,9 @@ class TestLedgerWebhookFailure:
         async def override_get_plan_repository():
             return PostgresPlanRepository(test_session)
 
+        async def override_get_webhook_repository():
+            return PostgresWebhookRepository(test_session)
+
         def override_get_bank_client():
             return mock_bank_client
 
@@ -165,6 +174,7 @@ class TestLedgerWebhookFailure:
 
         app.dependency_overrides[get_decision_repository] = override_get_decision_repository
         app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+        app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
         app.dependency_overrides[get_bank_client] = override_get_bank_client
         app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 

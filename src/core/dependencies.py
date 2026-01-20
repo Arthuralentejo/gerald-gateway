@@ -9,6 +9,7 @@ from src.infrastructure.database import get_db_session
 from src.infrastructure.repositories import (
     PostgresDecisionRepository,
     PostgresPlanRepository,
+    PostgresWebhookRepository,
 )
 from src.infrastructure.clients import (
     HttpBankAPIClient,
@@ -32,6 +33,13 @@ async def get_plan_repository(
     return PostgresPlanRepository(session)
 
 
+async def get_webhook_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostgresWebhookRepository:
+    """Get a WebhookRepository instance."""
+    return PostgresWebhookRepository(session)
+
+
 # External client dependencies
 def get_bank_client() -> HttpBankAPIClient:
     """Get a BankAPIClient instance."""
@@ -47,6 +55,7 @@ def get_ledger_client() -> HttpLedgerWebhookClient:
 async def get_decision_service(
     decision_repo: Annotated[PostgresDecisionRepository, Depends(get_decision_repository)],
     plan_repo: Annotated[PostgresPlanRepository, Depends(get_plan_repository)],
+    webhook_repo: Annotated[PostgresWebhookRepository, Depends(get_webhook_repository)],
     bank_client: Annotated[HttpBankAPIClient, Depends(get_bank_client)],
     ledger_client: Annotated[HttpLedgerWebhookClient, Depends(get_ledger_client)],
 ) -> DecisionService:
@@ -54,6 +63,7 @@ async def get_decision_service(
     return DecisionService(
         decision_repository=decision_repo,
         plan_repository=plan_repo,
+        webhook_repository=webhook_repo,
         bank_client=bank_client,
         ledger_client=ledger_client,
     )

@@ -5,7 +5,15 @@ from uuid import UUID
 
 import structlog
 
-from src.domain.entities import Decision, DecisionFactors, Plan, Installment
+from src.core.config import settings
+from src.domain.entities import (
+    Decision,
+    DecisionFactors,
+    Plan,
+    Installment,
+    OutboundWebhook,
+    WebhookEventType,
+)
 from src.domain.exceptions import (
     DecisionNotFoundException,
     InvalidDecisionRequestException,
@@ -14,6 +22,7 @@ from src.domain.interfaces import (
     BankAPIClient,
     DecisionRepository,
     PlanRepository,
+    WebhookRepository,
     LedgerWebhookClient,
 )
 from src.application.dto import DecisionRequest, DecisionResponse, DecisionHistoryResponse
@@ -44,11 +53,13 @@ class DecisionService:
         self,
         decision_repository: DecisionRepository,
         plan_repository: PlanRepository,
+        webhook_repository: WebhookRepository,
         bank_client: BankAPIClient,
         ledger_client: LedgerWebhookClient,
     ):
         self._decision_repo = decision_repository
         self._plan_repo = plan_repository
+        self._webhook_repo = webhook_repository
         self._bank_client = bank_client
         self._ledger_client = ledger_client
 
@@ -111,8 +122,8 @@ class DecisionService:
                 num_installments=len(plan.installments),
             )
 
-            # Send webhook asynchronously (fire and forget)
-            await self._ledger_client.send_plan_created(plan)
+            # Create and persist webhook before sending
+            webhook = await self._send_plan_webhook(plan)
 
         log.info(
             "decision_made",
@@ -306,3 +317,52 @@ class DecisionService:
             plan.installments.append(installment)
 
         return plan
+
+    async def _send_plan_webhook(self, plan: Plan) -> OutboundWebhook:
+        """
+        Send a plan created webhook with persistence for tracking.
+
+        The webhook is saved BEFORE sending to ensure we have a record
+        even if the service crashes during delivery. Status is updated
+        after the send attempt completes.
+        """
+        # Build webhook payload (matching ledger client format)
+        payload = {
+            "event": "plan_created",
+            "plan_id": str(plan.id),
+            "user_id": plan.user_id,
+            "total_cents": plan.total_cents,
+            "num_installments": len(plan.installments),
+            "installments": [
+                {
+                    "installment_id": str(inst.id),
+                    "due_date": inst.due_date.isoformat(),
+                    "amount_cents": inst.amount_cents,
+                }
+                for inst in plan.installments
+            ],
+            "created_at": plan.created_at.isoformat() + "Z",
+        }
+
+        # Create webhook record with PENDING status
+        webhook = OutboundWebhook(
+            event_type=WebhookEventType.PLAN_CREATED,
+            payload=payload,
+            target_url=settings.ledger_webhook_url,
+        )
+
+        # Save before sending (ensures we have a record for retry)
+        await self._webhook_repo.save(webhook)
+
+        # Attempt to send via ledger client
+        success = await self._ledger_client.send_plan_created(plan)
+
+        # Update webhook status based on result
+        if success:
+            webhook.mark_sent()
+        else:
+            webhook.mark_failed()
+
+        await self._webhook_repo.update(webhook)
+
+        return webhook

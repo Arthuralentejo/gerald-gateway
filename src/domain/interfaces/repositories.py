@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from uuid import UUID
 
-from src.domain.entities import Decision, Plan
+from src.domain.entities import Decision, Plan, OutboundWebhook
 
 
 class DecisionRepository(ABC):
@@ -104,5 +104,68 @@ class PlanRepository(ABC):
 
         Returns:
             List of plans for the user
+        """
+        ...
+
+
+class WebhookRepository(ABC):
+    """
+    Abstract repository for OutboundWebhook persistence.
+
+    Webhooks are persisted to enable:
+    - Delivery tracking and auditing
+    - Retry logic for failed deliveries
+    - Monitoring of webhook health
+    """
+
+    @abstractmethod
+    async def save(self, webhook: OutboundWebhook) -> OutboundWebhook:
+        """
+        Persist a webhook record.
+
+        Args:
+            webhook: The webhook to save
+
+        Returns:
+            The saved webhook with any generated fields populated
+        """
+        ...
+
+    @abstractmethod
+    async def update(self, webhook: OutboundWebhook) -> OutboundWebhook:
+        """
+        Update an existing webhook record.
+
+        Args:
+            webhook: The webhook to update
+
+        Returns:
+            The updated webhook
+        """
+        ...
+
+    @abstractmethod
+    async def get_by_id(self, webhook_id: UUID) -> Optional[OutboundWebhook]:
+        """
+        Retrieve a webhook by ID.
+
+        Args:
+            webhook_id: The webhook's unique identifier
+
+        Returns:
+            The webhook if found, None otherwise
+        """
+        ...
+
+    @abstractmethod
+    async def get_pending(self, limit: int = 100) -> List[OutboundWebhook]:
+        """
+        Retrieve pending webhooks for retry processing.
+
+        Args:
+            limit: Maximum number of webhooks to return
+
+        Returns:
+            List of pending or retrying webhooks
         """
         ...

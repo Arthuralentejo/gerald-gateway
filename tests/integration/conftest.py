@@ -32,6 +32,7 @@ from src.core.dependencies import (
     get_ledger_client,
     get_decision_repository,
     get_plan_repository,
+    get_webhook_repository,
 )
 from src.domain.entities import Transaction, TransactionType
 from src.domain.exceptions import UserNotFoundException, BankAPIException
@@ -40,6 +41,7 @@ from src.infrastructure.database import Base, db_manager
 from src.infrastructure.repositories import (
     PostgresDecisionRepository,
     PostgresPlanRepository,
+    PostgresWebhookRepository,
 )
 
 
@@ -269,6 +271,9 @@ async def client(
     async def override_get_plan_repository():
         return PostgresPlanRepository(test_session)
 
+    async def override_get_webhook_repository():
+        return PostgresWebhookRepository(test_session)
+
     def override_get_bank_client():
         return mock_bank_client
 
@@ -277,6 +282,7 @@ async def client(
 
     app.dependency_overrides[get_decision_repository] = override_get_decision_repository
     app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+    app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
     app.dependency_overrides[get_bank_client] = override_get_bank_client
     app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 
@@ -302,6 +308,9 @@ async def client_with_failing_bank(
     async def override_get_plan_repository():
         return PostgresPlanRepository(test_session)
 
+    async def override_get_webhook_repository():
+        return PostgresWebhookRepository(test_session)
+
     def override_get_bank_client():
         return failing_bank_client
 
@@ -310,6 +319,7 @@ async def client_with_failing_bank(
 
     app.dependency_overrides[get_decision_repository] = override_get_decision_repository
     app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+    app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
     app.dependency_overrides[get_bank_client] = override_get_bank_client
     app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 
@@ -333,6 +343,9 @@ async def client_with_failing_ledger(
     async def override_get_plan_repository():
         return PostgresPlanRepository(test_session)
 
+    async def override_get_webhook_repository():
+        return PostgresWebhookRepository(test_session)
+
     def override_get_bank_client():
         return mock_bank_client
 
@@ -341,6 +354,7 @@ async def client_with_failing_ledger(
 
     app.dependency_overrides[get_decision_repository] = override_get_decision_repository
     app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+    app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
     app.dependency_overrides[get_bank_client] = override_get_bank_client
     app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 
@@ -435,6 +449,10 @@ async def concurrent_client(
         session = async_session_factory()
         return PostgresPlanRepository(session)
 
+    async def override_get_webhook_repository():
+        session = async_session_factory()
+        return PostgresWebhookRepository(session)
+
     def override_get_bank_client():
         return mock_bank_client
 
@@ -443,6 +461,7 @@ async def concurrent_client(
 
     app.dependency_overrides[get_decision_repository] = override_get_decision_repository
     app.dependency_overrides[get_plan_repository] = override_get_plan_repository
+    app.dependency_overrides[get_webhook_repository] = override_get_webhook_repository
     app.dependency_overrides[get_bank_client] = override_get_bank_client
     app.dependency_overrides[get_ledger_client] = override_get_ledger_client
 

@@ -3,6 +3,7 @@
 from .decision import Decision, DecisionFactors
 from .plan import Plan, Installment, InstallmentStatus
 from .transaction import Transaction, TransactionType
+from .webhook import OutboundWebhook, WebhookStatus, WebhookEventType
 
 __all__ = [
     "Decision",
@@ -12,4 +13,7 @@ __all__ = [
     "InstallmentStatus",
     "Transaction",
     "TransactionType",
+    "OutboundWebhook",
+    "WebhookStatus",
+    "WebhookEventType",
 ]

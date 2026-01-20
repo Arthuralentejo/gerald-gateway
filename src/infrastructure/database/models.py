@@ -10,7 +10,9 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
+    Text,
     Uuid,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -121,4 +123,34 @@ class InstallmentModel(Base):
     plan: Mapped["PlanModel"] = relationship(
         "PlanModel",
         back_populates="installments",
+    )
+
+
+class OutboundWebhookModel(Base):
+    """Database model for outbound webhook tracking."""
+
+    __tablename__ = "outbound_webhook"
+
+    id: Mapped[str] = mapped_column(
+        Uuid(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="pending",
+    )
+    last_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
     )
