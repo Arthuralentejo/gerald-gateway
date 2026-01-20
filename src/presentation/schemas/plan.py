@@ -1,11 +1,10 @@
-"""Plan-related Pydantic schemas."""
+"""Pydantic schemas for payment plan API endpoints."""
 
 from pydantic import BaseModel, Field
 
 
 class InstallmentSchema(BaseModel):
-    """Schema for an installment in the plan response."""
-
+    """Schema for a single installment in a plan."""
     installment_id: str = Field(
         ...,
         description="UUID of the installment",
@@ -29,7 +28,7 @@ class InstallmentSchema(BaseModel):
 
 
 class PlanResponseSchema(BaseModel):
-    """Schema for GET /v1/plan/{plan_id} response."""
+    """Response schema for a payment plan with installments."""
 
     plan_id: str = Field(
         ...,

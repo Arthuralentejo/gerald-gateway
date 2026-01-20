@@ -1,4 +1,4 @@
-"""OutboundWebhook entity for tracking webhook deliveries."""
+"""Outbound webhook domain entity for ledger notifications."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -8,8 +8,6 @@ from uuid import UUID, uuid4
 
 
 class WebhookStatus(str, Enum):
-    """Status of an outbound webhook."""
-
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
@@ -17,20 +15,13 @@ class WebhookStatus(str, Enum):
 
 
 class WebhookEventType(str, Enum):
-    """Types of webhook events."""
-
     PLAN_CREATED = "plan_created"
     DECISION_MADE = "decision_made"
 
 
 @dataclass
 class OutboundWebhook:
-    """
-    Represents an outbound webhook to be delivered to external systems.
-
-    Webhooks are persisted before sending to ensure delivery tracking
-    and enable retry logic for failed deliveries.
-    """
+    """An outbound webhook notification with delivery tracking."""
 
     event_type: WebhookEventType
     payload: dict[str, Any]
@@ -42,25 +33,21 @@ class OutboundWebhook:
     created_at: datetime = field(default_factory=datetime.utcnow)
 
     def mark_sent(self) -> None:
-        """Mark the webhook as successfully sent."""
         self.status = WebhookStatus.SENT
         self.attempts += 1
         self.last_attempt_at = datetime.utcnow()
 
     def mark_failed(self) -> None:
-        """Mark the webhook as failed after all retries exhausted."""
         self.status = WebhookStatus.FAILED
         self.attempts += 1
         self.last_attempt_at = datetime.utcnow()
 
     def mark_retrying(self) -> None:
-        """Mark the webhook as retrying."""
         self.status = WebhookStatus.RETRYING
         self.attempts += 1
         self.last_attempt_at = datetime.utcnow()
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
         return {
             "id": str(self.id),
             "event_type": self.event_type.value,

@@ -1,4 +1,4 @@
-"""Database connection and session management."""
+"""Async database connection management using SQLAlchemy."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -13,26 +13,15 @@ from src.core.config import settings
 
 
 class DatabaseSessionManager:
-    """
-    Manages database connections and sessions.
-
-    Uses SQLAlchemy async engine for non-blocking database operations.
-    """
+    """Manages async database engine and session lifecycle."""
 
     def __init__(self):
         self._engine = None
         self._sessionmaker = None
 
     def init(self, database_url: str | None = None):
-        """
-        Initialize the database engine and session factory.
-
-        Args:
-            database_url: Optional override for the database URL
-        """
         url = database_url or settings.database_url
 
-        # Convert postgres:// to postgresql+asyncpg://
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://"):
@@ -55,18 +44,11 @@ class DatabaseSessionManager:
         )
 
     async def close(self):
-        """Close the database engine."""
         if self._engine:
             await self._engine.dispose()
 
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[AsyncSession, None]:
-        """
-        Provide a transactional scope around operations.
-
-        Yields:
-            An async database session
-        """
         if self._sessionmaker is None:
             raise RuntimeError("Database not initialized. Call init() first.")
 
@@ -85,11 +67,5 @@ db_manager = DatabaseSessionManager()
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
-    """
-    FastAPI dependency for database sessions.
-
-    Yields:
-        An async database session
-    """
     async with db_manager.session() as session:
         yield session

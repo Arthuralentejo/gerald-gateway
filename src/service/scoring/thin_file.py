@@ -1,9 +1,4 @@
-"""
-Thin File Handling for Gerald BNPL Approval Engine.
-
-"Thin file" refers to users with limited transaction history, making
-it difficult to accurately assess their risk using standard scoring.
-"""
+"""Thin file detection and handling for users with limited history."""
 
 from typing import List, Optional, Tuple
 
@@ -16,20 +11,7 @@ def is_thin_file(
     transactions: List[Transaction],
     settings: ScoringSettings = scoring_settings,
 ) -> bool:
-    """
-    Determine if a user has a "thin file" (insufficient transaction history).
-
-    A file is considered "thin" if either:
-    - Fewer than min_transactions total transactions
-    - Fewer than min_history_days unique days with transactions
-
-    Args:
-        transactions: List of bank transactions
-        settings: Scoring settings (uses defaults if not provided)
-
-    Returns:
-        True if the user has a thin file
-    """
+    """Check if user has insufficient transaction history."""
     if len(transactions) < settings.min_transactions:
         return True
 
@@ -44,22 +26,7 @@ def handle_thin_file(
     transactions: List[Transaction],
     settings: ScoringSettings = scoring_settings,
 ) -> Optional[Tuple[bool, int]]:
-    """
-    Handle thin-file users with a special approval policy.
-
-    Policy:
-        1. If not a thin file: return None (use standard scoring)
-        2. If thin file with ANY NSF: decline
-        3. If thin file with no NSFs: approve with starter limit
-
-    Args:
-        transactions: List of bank transactions
-        settings: Scoring settings (uses defaults if not provided)
-
-    Returns:
-        Tuple of (approved, credit_limit_cents) if thin file,
-        None if should use standard scoring
-    """
+    """Handle thin file users, returning (approved, limit) or None for standard scoring."""
     if not is_thin_file(transactions, settings):
         return None
 
@@ -75,16 +42,7 @@ def get_thin_file_reason(
     transactions: List[Transaction],
     settings: ScoringSettings = scoring_settings,
 ) -> str:
-    """
-    Get a human-readable explanation for thin file classification.
-
-    Args:
-        transactions: List of bank transactions
-        settings: Scoring settings (uses defaults if not provided)
-
-    Returns:
-        Explanation string
-    """
+    """Get human-readable reason for thin file status."""
     if len(transactions) < settings.min_transactions:
         return f"Insufficient transactions ({len(transactions)} < {settings.min_transactions})"
 

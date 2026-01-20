@@ -1,4 +1,4 @@
-"""PostgreSQL implementation of WebhookRepository."""
+"""PostgreSQL repository implementation for outbound webhooks."""
 
 from typing import List, Optional
 from uuid import UUID
@@ -12,17 +12,12 @@ from src.infrastructure.database.models import OutboundWebhookModel
 
 
 class PostgresWebhookRepository(WebhookRepository):
-    """
-    PostgreSQL implementation of the Webhook repository.
-
-    Uses SQLAlchemy async session for database operations.
-    """
+    """PostgreSQL-backed webhook repository."""
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def save(self, webhook: OutboundWebhook) -> OutboundWebhook:
-        """Persist a webhook record to the database."""
         model = OutboundWebhookModel(
             id=str(webhook.id),
             event_type=webhook.event_type.value,
@@ -40,7 +35,6 @@ class PostgresWebhookRepository(WebhookRepository):
         return webhook
 
     async def update(self, webhook: OutboundWebhook) -> OutboundWebhook:
-        """Update an existing webhook record."""
         stmt = select(OutboundWebhookModel).where(
             OutboundWebhookModel.id == str(webhook.id)
         )
@@ -59,7 +53,6 @@ class PostgresWebhookRepository(WebhookRepository):
         return webhook
 
     async def get_by_id(self, webhook_id: UUID) -> Optional[OutboundWebhook]:
-        """Retrieve a webhook by ID."""
         stmt = select(OutboundWebhookModel).where(
             OutboundWebhookModel.id == str(webhook_id)
         )
@@ -72,7 +65,6 @@ class PostgresWebhookRepository(WebhookRepository):
         return self._to_entity(model)
 
     async def get_pending(self, limit: int = 100) -> List[OutboundWebhook]:
-        """Retrieve pending webhooks for retry processing."""
         stmt = (
             select(OutboundWebhookModel)
             .where(
@@ -90,7 +82,6 @@ class PostgresWebhookRepository(WebhookRepository):
         return [self._to_entity(model) for model in models]
 
     def _to_entity(self, model: OutboundWebhookModel) -> OutboundWebhook:
-        """Convert database model to domain entity."""
         return OutboundWebhook(
             id=UUID(model.id),
             event_type=WebhookEventType(model.event_type),

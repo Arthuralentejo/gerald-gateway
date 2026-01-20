@@ -1,24 +1,4 @@
-"""
-Scoring Settings for Gerald BNPL Approval Engine.
-
-This module contains all configurable parameters for the risk scoring system.
-These can be adjusted via environment variables for A/B testing, different
-user segments, or tuning based on observed default rates.
-
-Environment variables use the SCORING_ prefix:
-    SCORING_APPROVAL_THRESHOLD=30
-    SCORING_WEIGHT_ADB=0.30
-    SCORING_THIN_FILE_LIMIT_CENTS=10000
-
-Usage:
-    from src.service.scoring.settings import scoring_settings
-
-    # Use default settings (loaded from env)
-    limit = scoring_settings.thin_file_limit_cents
-
-    # Or create custom settings for testing
-    custom = ScoringSettings(approval_threshold=25)
-"""
+"""Configurable settings for the risk scoring engine."""
 
 import json
 from functools import lru_cache
@@ -29,14 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ScoringSettings(BaseSettings):
-    """
-    Configurable parameters for the risk scoring algorithm.
-
-    All settings can be overridden via environment variables with SCORING_ prefix.
-    All monetary values are in cents.
-    All scores are 0-100.
-    """
-
+    """Environment-configurable thresholds and weights for scoring."""
     model_config = SettingsConfigDict(
         env_prefix="SCORING_",
         env_file=".env",
@@ -45,7 +18,6 @@ class ScoringSettings(BaseSettings):
         extra="ignore",
     )
 
-    # === Thin File Settings ===
     min_transactions: int = Field(
         default=10,
         description="Minimum transactions required for standard scoring",
@@ -59,7 +31,6 @@ class ScoringSettings(BaseSettings):
         description="Credit limit in cents for approved thin-file users ($100)",
     )
 
-    # === Factor Weights ===
     weight_adb: float = Field(
         default=0.30,
         ge=0.0,
@@ -79,7 +50,6 @@ class ScoringSettings(BaseSettings):
         description="Weight for NSF Count in composite score",
     )
 
-    # === Gig Worker Adjustment ===
     gig_worker_consistency_threshold: float = Field(
         default=0.5,
         ge=0.0,
@@ -98,7 +68,6 @@ class ScoringSettings(BaseSettings):
         description="Points added to ratio score for qualifying gig workers",
     )
 
-    # === Approval Threshold ===
     approval_threshold: int = Field(
         default=30,
         ge=0,
@@ -106,7 +75,6 @@ class ScoringSettings(BaseSettings):
         description="Minimum composite score required for approval (below = declined)",
     )
 
-    # === ADB Scoring Thresholds (in dollars) ===
     adb_negative_floor: float = Field(
         default=-200.0,
         description="ADB at or below this value gets score 0 (dollars)",
@@ -124,7 +92,6 @@ class ScoringSettings(BaseSettings):
         description="ADB at or above this is considered good cushion (dollars)",
     )
 
-    # === Ratio Scoring Thresholds ===
     ratio_critical_threshold: float = Field(
         default=0.8,
         gt=0.0,
@@ -146,7 +113,6 @@ class ScoringSettings(BaseSettings):
         description="Income/spend ratio above this indicates strong financial health",
     )
 
-    # === NSF Scoring ===
     nsf_forgivable_count: int = Field(
         default=1,
         ge=0,
@@ -163,7 +129,6 @@ class ScoringSettings(BaseSettings):
         description="NSF count above this indicates chronic payment issues",
     )
 
-    # === Credit Limit Tiers ===
     credit_limit_tiers_json: str = Field(
         default="[[0,29,0],[30,44,10000],[45,59,20000],[60,74,30000],[75,84,40000],[85,94,50000],[95,100,60000]]",
         description="Credit limit tiers as JSON array: [[min_score, max_score, limit_cents], ...]",
@@ -172,7 +137,6 @@ class ScoringSettings(BaseSettings):
     @field_validator("credit_limit_tiers_json")
     @classmethod
     def validate_tiers_json(cls, v: str) -> str:
-        """Validate that tiers JSON is parseable and well-formed."""
         try:
             tiers = json.loads(v)
             if not isinstance(tiers, list):
@@ -197,25 +161,21 @@ class ScoringSettings(BaseSettings):
 
     @property
     def credit_limit_tiers(self) -> List[Tuple[int, int, int]]:
-        """Credit limit tiers mapping score ranges to limits in cents."""
         tiers = json.loads(self.credit_limit_tiers_json)
         return [tuple(tier) for tier in tiers]
 
     @property
     def max_credit_limit_cents(self) -> int:
-        """Maximum credit limit available."""
         return max(tier[2] for tier in self.credit_limit_tiers)
 
     @property
     def min_credit_limit_cents(self) -> int:
-        """Minimum non-zero credit limit."""
         non_zero = [tier[2] for tier in self.credit_limit_tiers if tier[2] > 0]
         return min(non_zero) if non_zero else 0
 
 
 @lru_cache
 def get_scoring_settings() -> ScoringSettings:
-    """Get cached scoring settings instance."""
     return ScoringSettings()
 
 

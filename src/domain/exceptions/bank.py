@@ -1,11 +1,7 @@
-"""Bank API-related domain exceptions."""
-
 from .base import DomainException
 
 
 class BankAPIException(DomainException):
-    """Raised when the bank API returns an error."""
-
     def __init__(self, message: str, status_code: int | None = None):
         super().__init__(
             message=message,
@@ -15,8 +11,6 @@ class BankAPIException(DomainException):
 
 
 class BankAPITimeoutException(BankAPIException):
-    """Raised when the bank API times out."""
-
     def __init__(self):
         super().__init__(
             message="Bank API request timed out",
@@ -26,8 +20,6 @@ class BankAPITimeoutException(BankAPIException):
 
 
 class UserNotFoundException(DomainException):
-    """Raised when a user is not found in the bank system."""
-
     def __init__(self, user_id: str):
         super().__init__(
             message=f"User not found: {user_id}",

@@ -10,12 +10,7 @@ from .config import settings
 
 
 def setup_logging() -> None:
-    """
-    Configure structured logging for the application.
-
-    Uses structlog for structured JSON logging 
-    and colorized console output in development.
-    """
+    """Configure structlog with JSON or console output based on settings."""
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
@@ -52,5 +47,4 @@ def setup_logging() -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    """Get a logger instance with the given name."""
     return structlog.get_logger(name)

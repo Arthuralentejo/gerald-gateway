@@ -1,4 +1,4 @@
-"""PostgreSQL implementation of DecisionRepository."""
+"""PostgreSQL repository implementation for credit decisions."""
 
 from typing import List, Optional
 from uuid import UUID
@@ -13,17 +13,12 @@ from src.infrastructure.database.models import DecisionModel
 
 
 class PostgresDecisionRepository(DecisionRepository):
-    """
-    PostgreSQL implementation of the Decision repository.
-
-    Uses SQLAlchemy async session for database operations.
-    """
+    """PostgreSQL-backed decision repository."""
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def save(self, decision: Decision) -> Decision:
-        """Persist a decision to the database."""
         model = DecisionModel(
             id=str(decision.id),
             user_id=decision.user_id,
@@ -42,7 +37,6 @@ class PostgresDecisionRepository(DecisionRepository):
         return decision
 
     async def get_by_id(self, decision_id: UUID) -> Optional[Decision]:
-        """Retrieve a decision by ID."""
         stmt = (
             select(DecisionModel)
             .options(selectinload(DecisionModel.plan))
@@ -62,7 +56,6 @@ class PostgresDecisionRepository(DecisionRepository):
         limit: int = 10,
         offset: int = 0,
     ) -> List[Decision]:
-        """Retrieve decisions for a user, ordered by created_at descending."""
         stmt = (
             select(DecisionModel)
             .options(selectinload(DecisionModel.plan))
@@ -77,7 +70,6 @@ class PostgresDecisionRepository(DecisionRepository):
         return [self._to_entity(model) for model in models]
 
     def _get_score_band(self, risk_score: int) -> str:
-        """Map risk score to a band label."""
         if risk_score >= 95:
             return "excellent"
         elif risk_score >= 85:
@@ -94,7 +86,6 @@ class PostgresDecisionRepository(DecisionRepository):
             return "declined"
 
     def _to_entity(self, model: DecisionModel) -> Decision:
-        """Convert database model to domain entity."""
         risk_score = int(model.score_numeric) if model.score_numeric else 0
 
         return Decision(

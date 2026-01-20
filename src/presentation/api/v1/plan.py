@@ -1,4 +1,4 @@
-"""Plan API endpoints."""
+"""API endpoints for payment plan retrieval."""
 
 from typing import Annotated
 from uuid import UUID
@@ -34,11 +34,6 @@ async def get_plan(
     ],
     plan_service: Annotated[PlanService, Depends(get_plan_service)],
 ) -> PlanResponseSchema:
-    """
-    Retrieve a repayment plan by ID.
-
-    Returns plan details with all installments.
-    """
     response = await plan_service.get_plan(plan_id)
 
     return PlanResponseSchema(

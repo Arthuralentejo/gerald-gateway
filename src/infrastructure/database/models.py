@@ -1,4 +1,4 @@
-"""SQLAlchemy database models."""
+"""SQLAlchemy ORM models for BNPL entities."""
 
 from datetime import datetime, date
 from uuid import uuid4
@@ -19,13 +19,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
-    """Base class for all database models."""
-
     pass
 
 
 class DecisionModel(Base):
-    """Database model for BNPL decisions."""
+    """Persisted credit decision record."""
 
     __tablename__ = "bnpl_decisions"
 
@@ -47,7 +45,6 @@ class DecisionModel(Base):
         default=datetime.utcnow,
     )
 
-    # Relationship to plan (one-to-one)
     plan: Mapped["PlanModel | None"] = relationship(
         "PlanModel",
         back_populates="decision",
@@ -56,7 +53,7 @@ class DecisionModel(Base):
 
 
 class PlanModel(Base):
-    """Database model for repayment plans."""
+    """Persisted payment plan record."""
 
     __tablename__ = "bnpl_plans"
 
@@ -78,7 +75,6 @@ class PlanModel(Base):
         default=datetime.utcnow,
     )
 
-    # Relationships
     decision: Mapped["DecisionModel"] = relationship(
         "DecisionModel",
         back_populates="plan",
@@ -92,7 +88,7 @@ class PlanModel(Base):
 
 
 class InstallmentModel(Base):
-    """Database model for installment payments."""
+    """Persisted installment record within a plan."""
 
     __tablename__ = "bnpl_installments"
 
@@ -119,7 +115,6 @@ class InstallmentModel(Base):
         default=datetime.utcnow,
     )
 
-    # Relationship
     plan: Mapped["PlanModel"] = relationship(
         "PlanModel",
         back_populates="installments",
@@ -127,7 +122,7 @@ class InstallmentModel(Base):
 
 
 class OutboundWebhookModel(Base):
-    """Database model for outbound webhook tracking."""
+    """Persisted outbound webhook record for tracking delivery."""
 
     __tablename__ = "outbound_webhook"
 

@@ -1,4 +1,4 @@
-"""Error handling middleware and exception handlers."""
+"""Global exception handlers for domain and system errors."""
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -19,18 +19,13 @@ logger = structlog.get_logger(__name__)
 
 
 def error_handler_middleware(app: FastAPI) -> None:
-    """
-    Register exception handlers with the FastAPI app.
-
-    Maps domain exceptions to appropriate HTTP responses.
-    """
+    """Registers exception handlers for all domain exceptions."""
 
     @app.exception_handler(DecisionNotFoundException)
     async def decision_not_found_handler(
         request: Request,
         exc: DecisionNotFoundException,
     ) -> JSONResponse:
-        """Handle decision not found errors."""
         return JSONResponse(
             status_code=404,
             content={
@@ -45,7 +40,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: PlanNotFoundException,
     ) -> JSONResponse:
-        """Handle plan not found errors."""
         return JSONResponse(
             status_code=404,
             content={
@@ -60,7 +54,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: UserNotFoundException,
     ) -> JSONResponse:
-        """Handle user not found errors."""
         return JSONResponse(
             status_code=404,
             content={
@@ -75,7 +68,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: InvalidDecisionRequestException,
     ) -> JSONResponse:
-        """Handle invalid request errors."""
         return JSONResponse(
             status_code=400,
             content={
@@ -90,7 +82,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: BankAPITimeoutException,
     ) -> JSONResponse:
-        """Handle bank API timeout errors."""
         logger.error(
             "bank_api_timeout",
             request_id=get_request_id(),
@@ -109,7 +100,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: BankAPIException,
     ) -> JSONResponse:
-        """Handle bank API errors."""
         logger.error(
             "bank_api_error",
             request_id=get_request_id(),
@@ -130,7 +120,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: DomainException,
     ) -> JSONResponse:
-        """Handle generic domain exceptions."""
         logger.warning(
             "domain_exception",
             request_id=get_request_id(),
@@ -151,7 +140,6 @@ def error_handler_middleware(app: FastAPI) -> None:
         request: Request,
         exc: Exception,
     ) -> JSONResponse:
-        """Handle unexpected exceptions."""
         logger.exception(
             "unhandled_exception",
             request_id=get_request_id(),

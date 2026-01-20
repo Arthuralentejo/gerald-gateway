@@ -1,4 +1,4 @@
-"""HTTP implementation of LedgerWebhookClient."""
+"""HTTP client for sending webhooks to the ledger service."""
 
 import asyncio
 from typing import Any, Dict
@@ -20,11 +20,7 @@ logger = structlog.get_logger(__name__)
 
 
 class HttpLedgerWebhookClient(LedgerWebhookClient):
-    """
-    HTTP client for the Ledger Webhook.
-
-    Sends async notifications with retry logic and exponential backoff.
-    """
+    """HTTP implementation of ledger webhook client with retry support."""
 
     def __init__(
         self,
@@ -37,11 +33,6 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
         self._max_retries = max_retries
 
     async def send_plan_created(self, plan: Plan) -> bool:
-        """
-        Send a plan created webhook to the ledger.
-
-        Implements retry with exponential backoff.
-        """
         payload = {
             "event": "plan_created",
             "plan_id": str(plan.id),
@@ -68,7 +59,6 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
         approved: bool,
         amount_cents: int,
     ) -> bool:
-        """Send a decision made webhook to the ledger."""
         payload = {
             "event": "decision_made",
             "decision_id": decision_id,
@@ -84,11 +74,6 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
         payload: Dict[str, Any],
         event_type: str,
     ) -> bool:
-        """
-        Send a webhook with retry logic.
-
-        Uses exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s, 1.6s
-        """
         url = self._base_url
 
         for attempt in range(self._max_retries):
@@ -132,7 +117,6 @@ class HttpLedgerWebhookClient(LedgerWebhookClient):
                     error=str(e),
                 )
 
-            # Record retry and exponential backoff
             if attempt < self._max_retries - 1:
                 record_webhook_retry()
                 delay = 2 ** attempt * 0.1

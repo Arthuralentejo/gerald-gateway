@@ -1,5 +1,3 @@
-"""API v1 router aggregating all v1 endpoints."""
-
 from fastapi import APIRouter
 
 from .decision import decision_router

@@ -1,4 +1,4 @@
-"""PostgreSQL implementation of PlanRepository."""
+"""PostgreSQL repository implementation for payment plans."""
 
 from typing import List, Optional
 from uuid import UUID
@@ -13,17 +13,12 @@ from src.infrastructure.database.models import PlanModel, InstallmentModel
 
 
 class PostgresPlanRepository(PlanRepository):
-    """
-    PostgreSQL implementation of the Plan repository.
-
-    Uses SQLAlchemy async session for database operations.
-    """
+    """PostgreSQL-backed plan repository."""
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
     async def save(self, plan: Plan) -> Plan:
-        """Persist a plan with its installments to the database."""
         model = PlanModel(
             id=str(plan.id),
             decision_id=str(plan.decision_id),
@@ -32,7 +27,6 @@ class PostgresPlanRepository(PlanRepository):
             created_at=plan.created_at,
         )
 
-        # Add installments
         for installment in plan.installments:
             inst_model = InstallmentModel(
                 id=str(installment.id),
@@ -49,7 +43,6 @@ class PostgresPlanRepository(PlanRepository):
         return plan
 
     async def get_by_id(self, plan_id: UUID) -> Optional[Plan]:
-        """Retrieve a plan by ID with its installments."""
         stmt = (
             select(PlanModel)
             .options(selectinload(PlanModel.installments))
@@ -64,7 +57,6 @@ class PostgresPlanRepository(PlanRepository):
         return self._to_entity(model)
 
     async def get_by_user_id(self, user_id: str) -> List[Plan]:
-        """Retrieve all plans for a user."""
         stmt = (
             select(PlanModel)
             .options(selectinload(PlanModel.installments))
@@ -77,7 +69,6 @@ class PostgresPlanRepository(PlanRepository):
         return [self._to_entity(model) for model in models]
 
     def _to_entity(self, model: PlanModel) -> Plan:
-        """Convert database model to domain entity."""
         installments = [
             Installment(
                 id=UUID(inst.id),

@@ -1,11 +1,10 @@
-"""Error response schemas."""
+"""Pydantic schema for API error responses."""
 
 from pydantic import BaseModel, Field
 
 
 class ErrorResponseSchema(BaseModel):
-    """Schema for error responses."""
-
+    """Standard error response format for all API errors."""
     error: str = Field(
         ...,
         description="Error code",

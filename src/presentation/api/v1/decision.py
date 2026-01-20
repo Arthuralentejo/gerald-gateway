@@ -1,4 +1,4 @@
-"""Decision API endpoints."""
+"""API endpoints for BNPL credit decisions."""
 
 from typing import Annotated
 
@@ -43,11 +43,6 @@ async def create_decision(
     request: DecisionRequestSchema,
     decision_service: Annotated[DecisionService, Depends(get_decision_service)],
 ) -> DecisionResponseSchema:
-    """
-    Request a BNPL decision for a user.
-
-    Returns approval status, credit limit, and repayment plan details.
-    """
     dto = DecisionRequest(
         user_id=request.user_id,
         amount_cents_requested=request.amount_cents_requested,
@@ -56,7 +51,6 @@ async def create_decision(
     with track_decision_latency():
         response = await decision_service.make_decision(dto)
 
-    # Record business metrics
     record_decision(response.approved, response.credit_limit_cents)
 
     return DecisionResponseSchema(
@@ -101,11 +95,6 @@ async def get_decision_history(
     ] = 10,
     decision_service: Annotated[DecisionService, Depends(get_decision_service)] = None,
 ) -> DecisionHistoryResponseSchema:
-    """
-    Get recent decision history for a user.
-
-    Returns decisions ordered by created_at descending.
-    """
     response = await decision_service.get_decision_history(user_id, limit)
 
     return DecisionHistoryResponseSchema(

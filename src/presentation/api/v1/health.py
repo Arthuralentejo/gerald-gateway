@@ -1,4 +1,4 @@
-"""Health check endpoints."""
+"""Health check endpoint for service monitoring."""
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -9,8 +9,6 @@ health_router = APIRouter()
 
 
 class HealthResponse(BaseModel):
-    """Health check response."""
-
     status: str = "healthy"
     version: str
 
@@ -22,6 +20,4 @@ class HealthResponse(BaseModel):
     description="Returns the health status of the service.",
 )
 async def health_check() -> HealthResponse:
-    """Check if the service is healthy."""
-
     return HealthResponse(status="healthy", version=__version__)

@@ -1,12 +1,11 @@
-"""Decision-related Pydantic schemas."""
+"""Pydantic schemas for credit decision API endpoints."""
 
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class DecisionRequestSchema(BaseModel):
-    """Schema for POST /v1/decision request body."""
-
+    """Request schema for creating a BNPL decision."""
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
@@ -34,14 +33,13 @@ class DecisionRequestSchema(BaseModel):
     @field_validator("user_id")
     @classmethod
     def validate_user_id(cls, v: str) -> str:
-        """Ensure user_id is not just whitespace."""
         if not v.strip():
             raise ValueError("user_id cannot be empty or whitespace")
         return v.strip()
 
 
 class DecisionFactorsSchema(BaseModel):
-    """Schema for decision factors in the response."""
+    """Schema for risk factors in decision response."""
 
     avg_daily_balance: float = Field(
         ...,
@@ -69,7 +67,7 @@ class DecisionFactorsSchema(BaseModel):
 
 
 class DecisionResponseSchema(BaseModel):
-    """Schema for POST /v1/decision response body."""
+    """Response schema for a BNPL decision."""
 
     approved: bool = Field(
         ...,
@@ -118,7 +116,7 @@ class DecisionResponseSchema(BaseModel):
 
 
 class DecisionSummarySchema(BaseModel):
-    """Schema for a decision summary in history."""
+    """Schema for a single decision in history listings."""
 
     decision_id: str = Field(
         ...,
@@ -145,7 +143,7 @@ class DecisionSummarySchema(BaseModel):
 
 
 class DecisionHistoryResponseSchema(BaseModel):
-    """Schema for GET /v1/decision/history response."""
+    """Response schema for user's decision history."""
 
     user_id: str = Field(
         ...,

@@ -1,4 +1,4 @@
-"""Plan service - handles plan retrieval use cases."""
+"""Service for retrieving payment plan information."""
 
 from uuid import UUID
 
@@ -12,28 +12,12 @@ logger = structlog.get_logger(__name__)
 
 
 class PlanService:
-    """
-    Application service for repayment plan use cases.
-
-    Handles plan retrieval and status operations.
-    """
+    """Retrieves payment plans by ID or user."""
 
     def __init__(self, plan_repository: PlanRepository):
         self._plan_repo = plan_repository
 
     async def get_plan(self, plan_id: UUID) -> PlanResponse:
-        """
-        Retrieve a repayment plan by ID.
-
-        Args:
-            plan_id: The plan's unique identifier
-
-        Returns:
-            PlanResponse with plan details and installments
-
-        Raises:
-            PlanNotFoundException: If plan not found
-        """
         plan = await self._plan_repo.get_by_id(plan_id)
 
         if plan is None:
@@ -50,15 +34,6 @@ class PlanService:
         return PlanResponse.from_entity(plan)
 
     async def get_plans_by_user(self, user_id: str) -> list[PlanResponse]:
-        """
-        Retrieve all plans for a user.
-
-        Args:
-            user_id: The user's identifier
-
-        Returns:
-            List of PlanResponse objects
-        """
         plans = await self._plan_repo.get_by_user_id(user_id)
 
         logger.info(

@@ -1,4 +1,4 @@
-"""Decision entity representing a BNPL approval decision."""
+"""BNPL credit decision domain entity."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -8,19 +8,13 @@ from uuid import UUID, uuid4
 
 @dataclass(frozen=True)
 class DecisionFactors:
-    """
-    Risk factors that contributed to the decision.
-
-    These are exposed in the API response for transparency.
-    """
-
+    """Risk factors used to calculate the credit decision."""
     avg_daily_balance: float
     income_ratio: float
     nsf_count: int
     risk_score: int
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
         return {
             "avg_daily_balance": round(self.avg_daily_balance, 2),
             "income_ratio": round(self.income_ratio, 2),
@@ -31,12 +25,7 @@ class DecisionFactors:
 
 @dataclass
 class Decision:
-    """
-    Represents a BNPL approval decision.
-
-    This is the core domain entity that encapsulates the result
-    of evaluating a user's creditworthiness.
-    """
+    """A BNPL credit decision with approval status and granted amount."""
 
     user_id: str
     approved: bool
@@ -50,16 +39,13 @@ class Decision:
 
     @property
     def credit_limit_dollars(self) -> float:
-        """Get credit limit in dollars."""
         return self.credit_limit_cents / 100
 
     @property
     def amount_granted_dollars(self) -> float:
-        """Get granted amount in dollars."""
         return self.amount_granted_cents / 100
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
         return {
             "decision_id": str(self.id),
             "user_id": self.user_id,

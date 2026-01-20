@@ -1,9 +1,4 @@
-"""
-Credit Limit Mapping for Gerald BNPL Approval Engine.
-
-This module maps composite risk scores to credit limits, implementing
-the graduated tier system that balances risk with revenue opportunity.
-"""
+"""Functions to map risk scores to credit limits."""
 
 from .settings import ScoringSettings, scoring_settings
 
@@ -12,16 +7,7 @@ def score_to_credit_limit_cents(
     risk_score: int,
     settings: ScoringSettings = scoring_settings,
 ) -> int:
-    """
-    Map a risk score to a credit limit in cents.
-
-    Args:
-        risk_score: Composite risk score (0-100)
-        settings: Scoring settings (uses defaults if not provided)
-
-    Returns:
-        Credit limit in cents (0 = declined)
-    """
+    """Map risk score to credit limit in cents using configured tiers."""
     if risk_score < 0:
         risk_score = 0
     elif risk_score > 100:
@@ -35,15 +21,7 @@ def score_to_credit_limit_cents(
 
 
 def get_credit_limit_bucket(limit_cents: int) -> str:
-    """
-    Get the bucket label for a credit limit (for metrics reporting).
-
-    Args:
-        limit_cents: Credit limit in cents
-
-    Returns:
-        Bucket label string
-    """
+    """Get display bucket label for credit limit."""
     if limit_cents == 0:
         return "0"
     elif limit_cents <= 10000:
@@ -64,14 +42,5 @@ def is_approved(
     risk_score: int,
     settings: ScoringSettings = scoring_settings,
 ) -> bool:
-    """
-    Determine if a risk score results in approval.
-
-    Args:
-        risk_score: Composite risk score (0-100)
-        settings: Scoring settings (uses defaults if not provided)
-
-    Returns:
-        True if approved, False if declined
-    """
+    """Check if risk score qualifies for approval."""
     return score_to_credit_limit_cents(risk_score, settings) > 0

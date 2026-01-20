@@ -1,4 +1,4 @@
-"""Plan and Installment entities for repayment schedules."""
+"""BNPL payment plan domain entities."""
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -8,8 +8,6 @@ from uuid import UUID, uuid4
 
 
 class InstallmentStatus(str, Enum):
-    """Status of an installment payment."""
-
     SCHEDULED = "scheduled"
     PAID = "paid"
     FAILED = "failed"
@@ -18,11 +16,7 @@ class InstallmentStatus(str, Enum):
 
 @dataclass
 class Installment:
-    """
-    Represents a single installment in a repayment plan.
-
-    Gerald uses 4 bi-weekly installments for all approved plans.
-    """
+    """A single scheduled payment within a plan."""
 
     due_date: date
     amount_cents: int
@@ -33,11 +27,9 @@ class Installment:
 
     @property
     def amount_dollars(self) -> float:
-        """Get amount in dollars."""
         return self.amount_cents / 100
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
         return {
             "installment_id": str(self.id),
             "due_date": self.due_date.isoformat(),
@@ -48,11 +40,7 @@ class Installment:
 
 @dataclass
 class Plan:
-    """
-    Represents a BNPL repayment plan.
-
-    Each approved decision generates a plan with 4 bi-weekly installments.
-    """
+    """A BNPL payment plan with multiple installments."""
 
     user_id: str
     decision_id: UUID
@@ -63,16 +51,13 @@ class Plan:
 
     @property
     def total_dollars(self) -> float:
-        """Get total in dollars."""
         return self.total_cents / 100
 
     @property
     def num_installments(self) -> int:
-        """Get number of installments."""
         return len(self.installments)
 
     def to_dict(self) -> dict:
-        """Convert to dictionary for serialization."""
         return {
             "plan_id": str(self.id),
             "user_id": self.user_id,

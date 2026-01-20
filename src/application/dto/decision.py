@@ -1,4 +1,4 @@
-"""Decision-related DTOs."""
+"""Data transfer objects for credit decision operations."""
 
 from dataclasses import dataclass
 from typing import List, Optional
@@ -6,18 +6,11 @@ from typing import List, Optional
 
 @dataclass(frozen=True)
 class DecisionRequest:
-    """Input DTO for requesting a BNPL decision."""
-
+    """Input data for requesting a credit decision."""
     user_id: str
     amount_cents_requested: int
 
     def validate(self) -> List[str]:
-        """
-        Validate the request and return any errors.
-
-        Returns:
-            List of validation error messages
-        """
         errors = []
 
         if not self.user_id or not self.user_id.strip():
@@ -31,7 +24,7 @@ class DecisionRequest:
 
 @dataclass(frozen=True)
 class DecisionFactorsDTO:
-    """DTO for decision factors in response.""" 
+    """Risk factors included in decision responses."""
 
     avg_daily_balance: float
     income_ratio: float
@@ -41,7 +34,7 @@ class DecisionFactorsDTO:
 
 @dataclass(frozen=True)
 class DecisionResponse:
-    """Output DTO for a BNPL decision."""
+    """Response data for a credit decision."""
 
     approved: bool
     credit_limit_cents: int
@@ -51,7 +44,6 @@ class DecisionResponse:
 
     @classmethod
     def from_entity(cls, decision) -> "DecisionResponse":
-        """Create from a Decision entity."""
         return cls(
             approved=decision.approved,
             credit_limit_cents=decision.credit_limit_cents,
@@ -68,7 +60,7 @@ class DecisionResponse:
 
 @dataclass(frozen=True)
 class DecisionSummary:
-    """Summary of a decision for history listing."""
+    """Brief summary of a decision for history listings."""
 
     decision_id: str
     approved: bool
@@ -79,14 +71,13 @@ class DecisionSummary:
 
 @dataclass(frozen=True)
 class DecisionHistoryResponse:
-    """Output DTO for decision history."""
+    """Response containing a user's decision history."""
 
     user_id: str
     decisions: List[DecisionSummary]
 
     @classmethod
     def from_entities(cls, user_id: str, decisions: list) -> "DecisionHistoryResponse":
-        """Create from a list of Decision entities."""
         summaries = [
             DecisionSummary(
                 decision_id=str(d.id),

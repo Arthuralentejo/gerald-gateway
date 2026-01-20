@@ -1,4 +1,4 @@
-"""HTTP implementation of BankAPIClient."""
+"""HTTP client for fetching transactions from the bank API."""
 
 import asyncio
 from datetime import datetime
@@ -25,11 +25,7 @@ logger = structlog.get_logger(__name__)
 
 
 class HttpBankAPIClient(BankAPIClient):
-    """
-    HTTP client for the Bank API.
-
-    Fetches transaction history with retry logic and proper error handling.
-    """
+    """HTTP implementation of bank API client with retry support."""
 
     def __init__(
         self,
@@ -42,11 +38,6 @@ class HttpBankAPIClient(BankAPIClient):
         self._max_retries = max_retries
 
     async def get_transactions(self, user_id: str) -> List[Transaction]:
-        """
-        Fetch 90-day transaction history for a user.
-
-        Implements retry logic with exponential backoff.
-        """
         url = f"{self._base_url}/bank/transactions"
         params = {"user_id": user_id}
 
@@ -96,14 +87,12 @@ class HttpBankAPIClient(BankAPIClient):
                     error=str(e),
                 )
 
-            # Exponential backoff
             if attempt < self._max_retries - 1:
                 await asyncio.sleep(2**attempt * 0.1)
 
         raise last_exception or BankAPIException("Failed to fetch transactions")
 
     def _parse_transactions(self, data: Dict[str, Any]) -> List[Transaction]:
-        """Parse raw API response into Transaction entities."""
         transactions = []
 
         for item in data.get("transactions", []):
@@ -115,7 +104,6 @@ class HttpBankAPIClient(BankAPIClient):
             else:
                 txn_date = datetime.strptime(date_str, "%Y-%m-%d").date()
 
-            # Determine transaction type
             amount = item.get("amount_cents", item.get("amount", 0))
             if isinstance(amount, float):
                 amount = int(amount * 100)
@@ -126,7 +114,6 @@ class HttpBankAPIClient(BankAPIClient):
             elif txn_type_str == "debit":
                 txn_type = TransactionType.DEBIT
             else:
-                # Infer from amount sign
                 txn_type = (
                     TransactionType.CREDIT if amount > 0 else TransactionType.DEBIT
                 )

@@ -1,4 +1,4 @@
-"""Plan-related DTOs."""
+"""Data transfer objects for payment plan operations."""
 
 from dataclasses import dataclass
 from typing import List
@@ -6,8 +6,7 @@ from typing import List
 
 @dataclass(frozen=True)
 class InstallmentDTO:
-    """DTO for an installment in the plan response."""
-
+    """Single installment within a plan response."""
     installment_id: str
     due_date: str
     amount_cents: int
@@ -16,7 +15,7 @@ class InstallmentDTO:
 
 @dataclass(frozen=True)
 class PlanResponse:
-    """Output DTO for a repayment plan."""
+    """Response data for a payment plan with installments."""
 
     plan_id: str
     user_id: str
@@ -25,7 +24,6 @@ class PlanResponse:
 
     @classmethod
     def from_entity(cls, plan) -> "PlanResponse":
-        """Create from a Plan entity."""
         installments = [
             InstallmentDTO(
                 installment_id=str(inst.id),
