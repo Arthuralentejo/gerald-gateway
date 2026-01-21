@@ -614,3 +614,57 @@ SCORING_CREDIT_LIMIT_TIERS_JSON=[[0,29,0],[30,44,10000],[45,59,20000],[60,74,300
 ```
 
 See `.env.example` for all available settings.
+
+---
+
+## Local Monitoring Dashboard
+
+A Grafana + Prometheus stack is included for local monitoring and development visualization.
+
+### Running the Dashboard
+
+```bash
+# Start the monitoring stack
+docker compose -f docker-compose.monitoring.yml up -d
+
+# Access the dashboards
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9091
+```
+
+Make sure the main application is running (`make run-dev` or `make docker-up`) so Prometheus can scrape metrics from `localhost:8000/metrics`.
+
+### Dashboard Panels
+
+The **Gerald BNPL Dashboard** has two sections:
+
+#### Business Metrics
+| Panel | Description |
+|-------|-------------|
+| **Approval Rate** | Percentage of decisions resulting in approval (gauge) |
+| **Average Credit Limit** | Mean credit limit for approved users in dollars |
+| **Decisions by Outcome** | Time series showing approved vs declined decisions |
+| **Credit Limit Distribution** | Breakdown of approved limits by tier ($100-$600) |
+
+#### Engineering Metrics
+| Panel | Description |
+|-------|-------------|
+| **Decision Latency (p95)** | 95th percentile response time for `/v1/decision` endpoint |
+| **Bank API Health** | Success rate of Bank API calls (should be >99%) |
+| **Webhook Delivery** | Success vs failure count for webhook notifications |
+
+### Interpreting the Metrics
+
+- **Approval Rate ~40%**: Target is 40% approval with <5% default. Significant drops may indicate user quality changes or bugs.
+- **Decision Latency <200ms**: Most latency comes from Bank API calls. If p95 exceeds 500ms, check upstream connectivity.
+- **Bank API Health >99%**: The system includes retry logic with exponential backoff. Persistent failures indicate upstream issues.
+- **Credit Limit Distribution**: Healthy distribution should show spread across tiers. Clustering at $100 may indicate thin-file heavy traffic.
+
+### Stopping the Dashboard
+
+```bash
+docker compose -f docker-compose.monitoring.yml down
+
+# To remove stored data as well
+docker compose -f docker-compose.monitoring.yml down -v
+```
